@@ -1,16 +1,16 @@
-
 "use client";
 
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertCircle, User } from "lucide-react";
+import { Loader2, AlertCircle, User, CheckCircle2 } from "lucide-react";
 import { SeatSelectionDialog } from "@/components/booking/seat-selection-dialog";
 import { BookingSummary } from "@/components/booking/booking-summary";
 import { PassengerForm } from "@/components/booking/passenger-form";
 import { BookingHeader } from "@/components/booking/booking-header";
+import { apiFetch } from "@/lib/fetcher";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -19,11 +19,18 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useScheduleDetail } from "@/features/booking/useScheduleDetail";
 import { useCreateBooking } from "@/features/booking/useCreateBooking";
 import type { Passenger } from "@/lib/types/booking";
 import type { Route } from "next";
 import Link from "next/link";
+import { getBookingReceiptByCode, type BookingReceipt } from "@/lib/api/booking";
 
 export default function BookingPage() {
   const router = useRouter();
@@ -44,20 +51,44 @@ export default function BookingPage() {
   // Get current user
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [penumpangId, setPenumpangId] = useState<number | null>(null);
+  const [receipt, setReceipt] = useState<BookingReceipt | null>(null);
 
   useEffect(() => {
+    // 1. Try to get from localStorage first for immediate UI
     const userStr = localStorage.getItem("user");
     if (userStr) {
       try {
         const user = JSON.parse(userStr);
         setCurrentUser(user);
-        // Assuming user has penumpang_id or we need to fetch it
-        // For now, we'll use a placeholder - this should be from user.penumpang?.id
-        setPenumpangId(user.penumpang?.id || user.id);
+        // Fallback checks
+        if (user.penumpang?.id) {
+            setPenumpangId(user.penumpang.id);
+        }
       } catch (err) {
         console.error("Failed to parse user", err);
       }
     }
+
+    // 2. Fetch fresh profile from API to ensure we have a valid penumpangId
+    const fetchProfile = async () => {
+        try {
+            // /users/me returns { role: 'penumpang', data: { id: 1, ... } }
+            const response = await apiFetch<any>('/users/me');
+            console.log("Profile fetched:", response);
+            
+            if (response.role === 'penumpang' && response.data?.id) {
+                setPenumpangId(response.data.id);
+                // Optionally update currentUser if needed, but for now ID is critical
+            } else if (response.role === 'petugas') {
+                 // Handle petugas if necessary, or alert they can't book as normal user? 
+                 console.warn("Logged in as petugas, might not have passenger ID for self-booking");
+            }
+        } catch (error) {
+            console.error("Failed to fetch profile:", error);
+        }
+    };
+
+    fetchProfile();
   }, []);
 
   // Initialize passengers based on URL params
@@ -110,12 +141,16 @@ export default function BookingPage() {
     penumpangId !== null;
 
   const handleSubmit = async () => {
-    if (!canSubmit || !penumpangId) return;
+    if (!canSubmit || !penumpangId) {
+      console.warn("Submit blocked: canSubmit is false or penumpangId is null", { canSubmit, penumpangId });
+      return;
+    }
 
     try {
       const payload = {
         id_penumpang: penumpangId,
         id_jadwal_kereta: scheduleId,
+        metode_pembayaran: "ATM", // Default payment method
         penumpang: passengers.map((p) => ({
           nik: p.nik,
           nama: p.nama,
@@ -124,17 +159,22 @@ export default function BookingPage() {
         })),
       };
 
+      console.log("Sending booking data:", payload);
       const response = await submit(payload);
-
-      // Redirect to payment or success page
-      // For now, we'll show an alert and redirect to dashboard
-      alert(
-        `Booking berhasil! Kode tiket: ${response.data.kode_tiket}\nTotal: ${response.data.total_harga}`
-      );
-      router.push("/dashboard");
+      console.log("Booking response success:", response);
+      
+      // Fetch receipt
+      console.log("Fetching receipt for kode_tiket:", response.data.kode_tiket);
+      const receiptData = await getBookingReceiptByCode(response.data.kode_tiket);
+      console.log("Receipt data received:", receiptData);
+      setReceipt(receiptData);
     } catch (err: any) {
-      // Error is already handled by the hook
-      console.error("Booking failed:", err);
+      console.error("Booking submission failed with error details:", {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        stack: err.stack
+      });
     }
   };
 
@@ -174,7 +214,7 @@ export default function BookingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 font-inter">
       <BookingHeader currentStep={1} />
       
       <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
@@ -302,7 +342,7 @@ export default function BookingPage() {
                   Memproses...
                 </>
               ) : (
-                "Lanjut ke Pembayaran"
+                "Lakukan Pembayaran"
               )}
             </Button>
 
@@ -326,6 +366,86 @@ export default function BookingPage() {
           .map((p) => p.id_kursi)
           .filter((id): id is number => id !== null)}
       />
+
+      {/* Receipt Modal */}
+      <Dialog open={!!receipt} onOpenChange={(open) => !open && setReceipt(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="mx-auto bg-green-100 p-3 rounded-full w-fit mb-4">
+              <CheckCircle2 className="h-8 w-8 text-green-600" />
+            </div>
+            <DialogTitle className="text-2xl font-bold text-center">
+              Pembayaran Berhasil!
+            </DialogTitle>
+            {receipt && (
+              <p className="text-center text-sm text-muted-foreground">
+                Kode Pemesanan: <span className="font-mono font-bold text-slate-900">{receipt.kode_pemesanan_display}</span>
+              </p>
+            )}
+          </DialogHeader>
+
+          {receipt && (
+            <div className="space-y-6 text-sm">
+              {/* Company Info */}
+              <div className="text-center space-y-1 border-b pb-4">
+                <h3 className="font-bold uppercase tracking-wider text-slate-700">{receipt.perusahaan.nama}</h3>
+                <p className="text-xs text-muted-foreground">{receipt.perusahaan.npwp}</p>
+              </div>
+
+              {/* Trip Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-muted-foreground text-xs">Kereta</p>
+                  <p className="font-medium">{receipt.rincian.kereta}</p>
+                  <p className="text-xs">{receipt.rincian.kelas}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-muted-foreground text-xs">Tanggal</p>
+                  <p className="font-medium">{receipt.detail_pemesanan[0].keberangkatan.split('|')[1].trim()}</p>
+                </div>
+              </div>
+
+              {/* Passengers */}
+              <div className="bg-slate-50 p-4 rounded-lg space-y-2">
+                <p className="font-semibold text-xs uppercase text-muted-foreground mb-2">Penumpang</p>
+                {receipt.rincian.penumpang.map((p, idx) => (
+                  <div key={idx} className="flex justify-between">
+                    <span>{p.nama}</span>
+                    <span className="font-medium">{p.harga}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Total */}
+              <div className="flex justify-between items-end pt-2 border-t">
+                <span className="font-bold text-lg">Total Pembayaran</span>
+                <span className="font-bold text-xl text-blue-600">{receipt.total_pembayaran}</span>
+              </div>
+
+              <p className="text-[10px] text-center text-muted-foreground">
+                {receipt.ppn_info} {receipt.ppn_disclaimer}
+              </p>
+
+              {/* Navigation Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  className="flex-1" 
+                  onClick={() => router.push('/' as Route)}
+                >
+                  Kembali ke Halaman Utama
+                </Button>
+                <Button 
+                  className="flex-1" 
+                  onClick={() => router.push('/history' as Route)}
+                >
+                  Lihat Riwayat Pesanan
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

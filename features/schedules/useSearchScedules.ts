@@ -52,20 +52,28 @@ export function useSearchSchedules(searchParams: SearchParams) {
       );
 
       // Filter by route + date
-      const filtered = response.filter((schedule) => {
-        const matchFrom = schedule.asal_keberangkatan
-          ?.toLowerCase()
-          .includes(searchParams.from.toLowerCase());
+      let filtered = response;
 
-        const matchTo = schedule.tujuan_keberangkatan
-          ?.toLowerCase()
-          .includes(searchParams.to.toLowerCase());
+      if (searchParams.from || searchParams.to || searchParams.date) {
+        filtered = response.filter((schedule) => {
+          const matchFrom =
+            !searchParams.from ||
+            schedule.asal_keberangkatan
+              ?.toLowerCase()
+              .includes(searchParams.from.toLowerCase());
 
-        const scheduleDate = extractDate(schedule.tanggal_berangkat);
-        const matchDate = scheduleDate === searchParams.date;
+          const matchTo =
+            !searchParams.to ||
+            schedule.tujuan_keberangkatan
+              ?.toLowerCase()
+              .includes(searchParams.to.toLowerCase());
 
-        return matchFrom && matchTo && matchDate;
-      });
+          const scheduleDate = extractDate(schedule.tanggal_berangkat);
+          const matchDate = !searchParams.date || scheduleDate === searchParams.date;
+
+          return matchFrom && matchTo && matchDate;
+        });
+      }
 
       setAllSchedules(filtered);
     } catch (err: any) {
@@ -77,10 +85,8 @@ export function useSearchSchedules(searchParams: SearchParams) {
   }, [searchParams.from, searchParams.to, searchParams.date]);
 
   useEffect(() => {
-    if (searchParams.from && searchParams.to && searchParams.date) {
-      fetchSchedules();
-    }
-  }, [fetchSchedules, searchParams.from, searchParams.to, searchParams.date]);
+    fetchSchedules();
+  }, [fetchSchedules]);
 
   // Apply client-side filters
   const filteredSchedules = useMemo(() => {

@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, LogOut } from "lucide-react";
+import { User, LogOut, Ticket } from "lucide-react";
 import { Route } from "next";
 
 interface UserData {
@@ -37,8 +37,15 @@ function getInitials(name: string): string {
 
 export function ProfileHeader() {
   const router = useRouter();
+  const pathname = usePathname();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const isHistoryPath = pathname.includes("/history");
+  const isPetugas = userData?.role === 'petugas';
+  const headerTitle = isHistoryPath 
+    ? "Riwayat Pemesanan" 
+    : (isPetugas ? "Detail Petugas" : "Detail Penumpang");
 
   useEffect(() => {
     const loadUser = () => {
@@ -141,7 +148,13 @@ export function ProfileHeader() {
               <DropdownMenuItem asChild>
                 <Link href={"/account/profile" as Route}>
                   <User className="mr-2 h-4 w-4" />
-                  Detail Penumpang
+                  {headerTitle}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={"/history" as Route}>
+                  <Ticket className="mr-2 h-4 w-4" />
+                  Pemesanan Anda
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -159,7 +172,7 @@ export function ProfileHeader() {
         {/* Header Content */}
         <div className="py-12 md:py-16">
           <h1 className="text-3xl text-white md:text-4xl font-bold mb-3 drop-shadow-lg">
-            Detail Penumpang
+            {headerTitle}
           </h1>
         </div>
       </div>

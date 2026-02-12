@@ -27,11 +27,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/features/profile/useProfile';
 import { useUpdateProfile } from '@/features/profile/useUpdateProfile';
 import { useUpdatePenumpang } from '@/features/profile/useUpdatePenumpang';
+import { useUpdatePetugas } from '@/features/profile/useUpdatePetugas';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { Loader2, Upload, User as UserIcon } from 'lucide-react';
 import { getPhotoUrl } from '@/lib/fetcher';
-import { PenumpangData, UpdatePenumpangInput } from '@/lib/types/profile';
+import { PenumpangData, PetugasData, UpdatePenumpangInput, UpdatePetugasInput } from '@/lib/types/profile';
 
 const profileSchema = z.object({
   // User fields
@@ -40,8 +41,9 @@ const profileSchema = z.object({
   password: z.string().min(6, 'Password minimal 6 karakter').optional().or(z.literal('')),
   profile_photo: z.any().optional(),
   
-  // Penumpang fields
+  // Penumpang/Petugas fields
   nama_penumpang: z.string().optional(),
+  nama_petugas: z.string().optional(),
   nik: z.string().max(50, 'NIK terlalu panjang').optional(),
   alamat: z.string().optional(),
   no_hp: z.string().max(20, 'Nomor telepon terlalu panjang').optional(),
@@ -53,11 +55,12 @@ export function ProfileForm() {
   const { profile, loading: profileLoading, refetch } = useProfile();
   const { updateProfile, loading: updateUserLoading } = useUpdateProfile();
   const { updatePenumpang, loading: updatePenumpangLoading } = useUpdatePenumpang();
+  const { updatePetugas, loading: updatePetugasLoading } = useUpdatePetugas();
   const [isEditing, setIsEditing] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const loading = updateUserLoading || updatePenumpangLoading;
+  const loading = updateUserLoading || updatePenumpangLoading || updatePetugasLoading;
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -66,6 +69,7 @@ export function ProfileForm() {
       email: '',
       password: '',
       nama_penumpang: '',
+      nama_petugas: '',
       nik: '',
       alamat: '',
       no_hp: '',
@@ -99,6 +103,7 @@ export function ProfileForm() {
   }, []);
 
   const penumpangData = profile?.role === 'penumpang' ? (profile.data as PenumpangData) : null;
+  const petugasData = profile?.role === 'petugas' ? (profile.data as PetugasData) : null;
 
   // Load data ke form saat profile ready
   useEffect(() => {
@@ -108,12 +113,13 @@ export function ProfileForm() {
         email: currentUser.email || '',
         password: '',
         nama_penumpang: penumpangData?.nama_penumpang || '',
-        nik: penumpangData?.nik || '',
-        alamat: penumpangData?.alamat || '',
-        no_hp: penumpangData?.no_hp || '',
+        nama_petugas: petugasData?.nama_petugas || '', // Populate nama_petugas
+        nik: (penumpangData?.nik || petugasData?.nik) || '',
+        alamat: (penumpangData?.alamat || petugasData?.alamat) || '',
+        no_hp: (penumpangData?.no_hp || petugasData?.no_hp) || '',
       });
     }
-  }, [profile, currentUser, penumpangData, form]);
+  }, [profile, currentUser, penumpangData, petugasData, form]);
 
   // Handle file change
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,7 +155,7 @@ export function ProfileForm() {
   const onSubmit = async (values: ProfileFormValues) => {
     try {
       let userUpdateSuccess = false;
-      let penumpangUpdateSuccess = false;
+      let roleDataUpdateSuccess = false;
 
       // 1. Update User data (username, email, password, photo)
       const userChanged =
@@ -186,7 +192,7 @@ export function ProfileForm() {
         userUpdateSuccess = true; // No changes needed
       }
 
-      // 2. Update Penumpang data (jika role penumpang)
+      // 2. Update Role specific data (Penumpang / Petugas)
       if (profile?.role === 'penumpang') {
         const penumpangChanged =
           values.nama_penumpang !== penumpangData?.nama_penumpang ||
@@ -217,16 +223,50 @@ export function ProfileForm() {
             return;
           }
 
-          penumpangUpdateSuccess = true;
+           roleDataUpdateSuccess = true;
         } else {
-          penumpangUpdateSuccess = true; // No changes needed
+           roleDataUpdateSuccess = true;
         }
+      } else if (profile?.role === 'petugas') {
+         // Update Petugas Data
+         const petugasChanged =
+          values.nama_petugas !== petugasData?.nama_petugas ||
+          values.nik !== petugasData?.nik ||
+          values.alamat !== petugasData?.alamat ||
+          values.no_hp !== petugasData?.no_hp;
+
+          if (petugasChanged && petugasData?.id) {
+             const updatePetugasData: UpdatePetugasInput = {};
+
+             if (values.nama_petugas !== petugasData?.nama_petugas) {
+                updatePetugasData.nama_petugas = values.nama_petugas || undefined;
+             }
+             if (values.nik !== petugasData?.nik) {
+                updatePetugasData.nik = values.nik || undefined;
+             }
+             if (values.alamat !== petugasData?.alamat) {
+                updatePetugasData.alamat = values.alamat || undefined;
+             }
+             if (values.no_hp !== petugasData?.no_hp) {
+                updatePetugasData.no_hp = values.no_hp || undefined;
+             }
+
+             const petugasResult = await updatePetugas(petugasData.id, updatePetugasData);
+
+             if (!petugasResult) {
+                toast.error('Gagal mengupdate data petugas');
+                return;
+             }
+             roleDataUpdateSuccess = true;
+          } else {
+             roleDataUpdateSuccess = true;
+          }
       } else {
-        penumpangUpdateSuccess = true; // Not penumpang role
+         roleDataUpdateSuccess = true; // Other roles
       }
 
       // 3. Handle result
-      if (userUpdateSuccess && penumpangUpdateSuccess) {
+      if (userUpdateSuccess && roleDataUpdateSuccess) {
         toast.success('Profil berhasil diupdate');
         setIsEditing(false);
         setPreviewImage(null);
@@ -282,9 +322,10 @@ export function ProfileForm() {
                     email: currentUser?.email || '',
                     password: '',
                     nama_penumpang: penumpangData?.nama_penumpang || '',
-                    nik: penumpangData?.nik || '',
-                    alamat: penumpangData?.alamat || '',
-                    no_hp: penumpangData?.no_hp || '',
+                    nama_petugas: petugasData?.nama_petugas || '',
+                    nik: (penumpangData?.nik || petugasData?.nik) || '',
+                    alamat: (penumpangData?.alamat || petugasData?.alamat) || '',
+                    no_hp: (penumpangData?.no_hp || petugasData?.no_hp) || '',
                   });
                 }}
                 disabled={loading}
@@ -415,12 +456,12 @@ export function ProfileForm() {
                 />
               )}
 
-              {/* Data Penumpang - Editable jika role penumpang */}
-              {profile?.role === 'penumpang' && (
+              {/* Data Penumpang / Petugas */}
+              {(profile?.role === 'penumpang' || profile?.role === 'petugas') && (
                 <>
                   <FormField
                     control={form.control}
-                    name="nama_penumpang"
+                    name={profile.role === 'penumpang' ? 'nama_penumpang' : 'nama_petugas'}
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Nama Lengkap</FormLabel>

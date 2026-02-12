@@ -1,7 +1,7 @@
 // app/dashboard/schedules/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useSchedules } from '@/features/schedules/useSchedules';
 import { useTrains } from '@/features/trains/useTrains';
 import { ScheduleDataTable } from '@/components/layout/schedules-data-table';
@@ -22,13 +22,19 @@ export default function SchedulesPage() {
   const [trainFilter, setTrainFilter] = useState<number | undefined>(undefined);
 
   const { schedules, loading, error, refetch } = useSchedules({
-    status: statusFilter,
+    status: 'all', // Fetch all for counts
     id_kereta: trainFilter,
   });
 
   const { trains, loading: trainsLoading } = useTrains();
 
-  // Count schedules by status
+  // Filter schedules for the table based on active tab
+  const filteredSchedules = useMemo(() => {
+    if (statusFilter === 'all') return schedules;
+    return schedules.filter((s) => s.status === statusFilter);
+  }, [schedules, statusFilter]);
+
+  // Count schedules by status from the FULL list
   const activeCount = schedules.filter((s) => s.status === 'active').length;
   const completedCount = schedules.filter((s) => s.status === 'completed').length;
   const cancelledCount = schedules.filter((s) => s.status === 'cancelled').length;
@@ -120,7 +126,7 @@ export default function SchedulesPage() {
           <Skeleton className="h-64 w-full" />
         </div>
       ) : (
-        <ScheduleDataTable data={schedules} onRefresh={refetch} />
+        <ScheduleDataTable data={filteredSchedules} onRefresh={refetch} />
       )}
     </div>
   );

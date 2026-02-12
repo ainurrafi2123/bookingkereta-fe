@@ -19,6 +19,7 @@ export interface BookingRequest {
     kategori: PassengerCategory;
     id_kursi: number;
   }[];
+  metode_pembayaran?: string;
 }
 
 // Response dari POST /api/v1/pembelian-tiket

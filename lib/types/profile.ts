@@ -22,6 +22,9 @@ export interface PetugasData {
   user_id: number;
   nip?: string;
   nama_petugas?: string;
+  nik?: string;
+  alamat?: string;
+  no_hp?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -41,6 +44,13 @@ export interface UpdateUserInput {
 
 export interface UpdatePenumpangInput {
   nama_penumpang?: string;
+  nik?: string;
+  alamat?: string;
+  no_hp?: string;
+}
+
+export interface UpdatePetugasInput {
+  nama_petugas?: string;
   nik?: string;
   alamat?: string;
   no_hp?: string;

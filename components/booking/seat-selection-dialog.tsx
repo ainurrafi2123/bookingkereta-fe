@@ -1,4 +1,4 @@
-// components/booking/seat-selection-dialog.tsx
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
