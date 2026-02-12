@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useProfile } from "@/features/profile/useProfile";
 import { ProfileHeader } from "@/components/sections/profile-header";
 import { SidebarProfile } from "@/components/navigation/sidebar-profile";
 import { ProfileForm } from "@/components/form/profile-form";
@@ -9,18 +9,9 @@ import { DeleteAccountSection } from "@/components/content/delete-account";
 import { ProfileSkeleton } from "@/components/ui/profile-skeleton";
 
 export default function ProfilePage() {
-  const [isLoading, setIsLoading] = useState(true);
+  const { profile, loading } = useProfile();
 
-  // Simulasi loading (ganti dengan real fetch nanti)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000); // 1.2 detik untuk demo, sesuaikan dengan kebutuhan
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (isLoading) {
+  if (loading) {
     return <ProfileSkeleton />;
   }
 
@@ -39,9 +30,11 @@ export default function ProfilePage() {
               <ProfileForm />
             </section>
 
-            <section className="bg-white rounded-xl shadow-sm border p-6 md:p-8">
-              <PassengerList />
-            </section>
+            {profile?.role === 'penumpang' && (
+              <section className="bg-white rounded-xl shadow-sm border p-6 md:p-8">
+                <PassengerList />
+              </section>
+            )}
 
             <DeleteAccountSection />
           </main>

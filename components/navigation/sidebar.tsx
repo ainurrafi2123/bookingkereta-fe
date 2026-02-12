@@ -181,16 +181,16 @@ export function Sidebar({ isOpen }: SidebarProps) {
               label: "Bookings",
               icon: Calendar,
             },
-            {
-              href: "/dashboard/tickets" as Route<string>,
-              label: "Tickets",
-              icon: Ticket,
-            },
-            {
-              href: "/dashboard/payments" as Route<string>,
-              label: "Payments",
-              icon: Inbox,
-            },
+            // {
+            //   href: "/dashboard/tickets" as Route<string>,
+            //   label: "Tickets",
+            //   icon: Ticket,
+            // },
+            // {
+            //   href: "/dashboard/payments" as Route<string>,
+            //   label: "Payments",
+            //   icon: Inbox,m
+            // },
           ],
         },
       ],
@@ -419,7 +419,12 @@ export function Sidebar({ isOpen }: SidebarProps) {
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem>Profile</DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={"/account/profile" as unknown as Route} className="cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem>Billing</DropdownMenuItem>
                 <DropdownMenuItem>Notifications</DropdownMenuItem>
               </DropdownMenuGroup>

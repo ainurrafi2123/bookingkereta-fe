@@ -38,17 +38,9 @@ function SearchPageContent() {
         <SearchForm />
 
         {/* Results */}
-        {from && to && date ? (
-          <ScheduleResults 
-            searchParams={{ from, to, date, adults, elderly, youth }} 
-          />
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">
-              Masukkan rute dan tanggal keberangkatan untuk mencari jadwal
-            </p>
-          </div>
-        )}
+        <ScheduleResults 
+          searchParams={{ from, to, date, adults, elderly, youth }} 
+        />
       </div>
     </div>
   );

@@ -52,7 +52,7 @@ export function BookingHeader({ currentStep }: BookingHeaderProps) {
                     )}
                   >
                     {isCompleted ? (
-                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      <Check className="w-3.5 h-3.5 stroke-3" />
                     ) : (
                       step.id
                     )}

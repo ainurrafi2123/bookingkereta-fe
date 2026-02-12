@@ -1,10 +1,10 @@
 // hooks/useCarriageDetail.ts
-'use client';
+"use client";
 
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { apiFetch } from '@/lib/fetcher';
-import { Carriage } from '@/lib/types/carriages';
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/fetcher";
+import { Carriage } from "@/lib/types/carriages";
 
 export function useCarriageDetail(carriageId: number | null) {
   const router = useRouter();
@@ -26,14 +26,14 @@ export function useCarriageDetail(carriageId: number | null) {
       setCarriage(response);
     } catch (err: any) {
       if (err.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        router.push('/login');
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        router.push("/login");
         return;
       }
 
-      setError(err.message || 'Gagal memuat detail gerbong');
-      console.error('Fetch carriage detail error:', err);
+      setError(err.message || "Gagal memuat detail gerbong");
+      console.error("Fetch carriage detail error:", err);
     } finally {
       setLoading(false);
     }

@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { toast } from "sonner"; // Import di bagian atas
+import { toast } from "sonner"; 
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Route } from "next";
 
 import {
@@ -32,9 +32,26 @@ const API_BASE_URL = "http://127.0.0.1:8000";
 
 const NavUser = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
+  
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearch = () => {
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery)}` as Route);
+    } else {
+      router.push("/search" as Route);
+    }
+  };
+  
+  const isHistoryPath = pathname.includes("/history");
+  const isPetugas = userData?.role === 'petugas';
+  const profileLabel = isHistoryPath 
+    ? "Riwayat Pemesanan" 
+    : (isPetugas ? "Detail Petugas" : "Detail Penumpang");
 
   // Load user dari localStorage sekali saat mount
   useEffect(() => {
@@ -130,6 +147,14 @@ const NavUser = () => {
     return name.substring(0, 2).toUpperCase();
   };
 
+  const getLinkClass = (path: string) => {
+    const isActive = path === "/" ? pathname === "/" : pathname.startsWith(path);
+    return cn(
+      "font-medium transition-colors hover:text-blue-600",
+      isActive ? "text-blue-600 font-semibold" : "text-gray-700"
+    );
+  };
+
   return (
     <>
       {/* Spacer agar konten tidak tertutup navbar */}
@@ -207,6 +232,9 @@ const NavUser = () => {
                     "w-full px-4 py-3 pl-11 pr-14 text-gray-700 bg-gray-100 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition",
                     isScrolled && "py-2.5 shadow-sm",
                   )}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 />
                 <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                   <svg
@@ -226,6 +254,7 @@ const NavUser = () => {
                 {/* Tombol Cari (muncul di dalam search saat compact) */}
                 <Button
                   size="sm"
+                  onClick={handleSearch}
                   className={cn(
                     "absolute right-1.5 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white rounded-full px-4",
                     !isScrolled && "hidden md:inline-flex",
@@ -241,25 +270,25 @@ const NavUser = () => {
               {/* Menu utama - hanya di mode full */}
               {!isScrolled && isLoggedIn && (
                 <div className="hidden md:flex items-center space-x-8 mr-8 transition-opacity duration-700">
-                  <a
-                    href="#"
-                    className="text-gray-700 hover:text-blue-600 font-medium"
+                  <Link
+                    href="/"
+                    className={getLinkClass("/")}
                   >
                     Pesan Tiket
-                  </a>
-                  <a
-                    href="#"
-                    className="text-gray-700 hover:text-blue-600 font-medium"
+                  </Link>
+                  <Link
+                    href={"/search" as Route}
+                    className={getLinkClass("/search")}
                   >
                     Jadwal Kereta
-                  </a>
+                  </Link>
                   <a
                     href="#"
-                    className="text-gray-700 hover:text-blue-600 font-medium"
+                    className={getLinkClass("/check-ticket")}
                   >
                     Cek Tiket
                   </a>
-                  <a href="#" className="text-blue-600 font-semibold">
+                  <a href="#" className={getLinkClass("/help")}>
                     Bantuan
                   </a>
                 </div>
@@ -302,13 +331,15 @@ const NavUser = () => {
                         <DropdownMenuItem key="profile" asChild>
                           <Link href={"/account/profile" as Route}>
                             <User className="mr-2 h-4 w-4" />
-                            Detail Penumpang
+                            {profileLabel}
                           </Link>
                         </DropdownMenuItem>
 
-                        <DropdownMenuItem key="orders">
-                          <Ticket className="mr-2 h-4 w-4" />
-                          Pemesanan Anda
+                        <DropdownMenuItem key="orders" asChild>
+                          <Link href={"/history" as Route}>
+                            <Ticket className="mr-2 h-4 w-4" />
+                            Pemesanan Anda
+                          </Link>
                         </DropdownMenuItem>
 
                         <DropdownMenuItem key="notifications">
